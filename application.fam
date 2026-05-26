@@ -1,0 +1,14 @@
+App(
+    appid="btcln_qr_generator",
+    name="BTCLN QR Generator",
+    apptype=FlipperAppType.EXTERNAL,
+    entry_point="btcln_qr_app",
+    requires=["gui"],
+    stack_size=8 * 1024,
+    fap_category="Tools",
+    fap_icon="icon.png",
+    fap_author="shanzy39",
+    fap_version="1.0",
+    fap_description="Display Lightning Address QR codes for receiving sats over the Lightning Network.",
+    sources=["*.c"],
+)
