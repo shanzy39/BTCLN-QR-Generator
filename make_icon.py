@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """
-Generate a 10x10 monochrome PNG icon for the Unbank Flipper app.
-The bitmap below is a stylized rendering of the Unbank bank-building
-silhouette (top entablature, three pillars, base platform, and the
-downward arrow underneath) — squeezed into the 10x10 grid that the
-Flipper Application Hub requires for app icons.
+Generate a 10x10 monochrome PNG icon for the BTCLN QR Generator
+Flipper app. The bitmap below is a stylized lightning bolt rendered
+into the 10x10 grid that the Flipper Application Hub requires for
+app icons.
 """
 import struct
 import zlib
@@ -12,19 +11,19 @@ import zlib
 WIDTH, HEIGHT = 10, 10
 
 # '#' = black pixel (visible), '.' = white (background)
-# Unbank bank silhouette: cornice + gap + architrave + 3 pillar rows
-# + base bar + downward arrow narrowing to a tip.
+# Stylized lightning bolt: thick diagonal stroke coming from the upper
+# right, a horizontal "elbow" mid-height, then continuing down-left.
 rows = [
-    "##########",   # cornice
-    "..........",   # gap
-    "##########",   # architrave
-    "#..#..#..#",   # pillars
-    "#..#..#..#",
-    "#..#..#..#",
-    "##########",   # base bar
-    ".########.",   # arrow widest
+    "......####",
+    ".....####.",
+    "....####..",
     "...####...",
-    "....##....",   # arrow tip
+    "..########",
+    ".....####.",
+    "....####..",
+    "...####...",
+    "..####....",
+    ".####.....",
 ]
 
 # Pack into PNG (1-bit grayscale)

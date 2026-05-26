@@ -1,29 +1,26 @@
 # BTCLN QR Generator
 
-A Flipper Zero app for receiving Bitcoin over the Lightning Network. Generate scannable Lightning Address QR codes for **Speed**, **Strike**, or **Wallet of Satoshi**, with on-device username editing and NDEF `.nfc` tag file export for writing physical NFC stickers.
+A Flipper Zero app for receiving Bitcoin over the Lightning Network. Generate scannable Lightning Address QR codes for **Speed**, **Strike**, or **Wallet of Satoshi**, with on-device username editing and NDEF `.nfc` tag file export for NTAG213, NTAG215, or NTAG216 stickers.
 
 ## Features
 
-- **Multi-wallet support.** Three preset wallets out of the box: Speed (`@speed.app`), Strike (`@strike.me`), and Wallet of Satoshi (`@walletofsatoshi.com`).
-- **On-device username editor.** Type your Lightning Address username right on the Flipper using the built-in keyboard. The wallet suffix is appended automatically so you never need to enter `@` or `.`.
-- **Persistent storage.** Usernames are saved to the SD card per wallet and survive reboots and uninstall/reinstall.
-- **Equal-sized QR codes.** Every QR renders at the same on-screen size regardless of how much data is encoded, for a consistent look.
-- **Haptic feedback.** A single vibration buzz confirms the QR is shown.
-- **NFC tag file export.** Generate a `.nfc` file for each wallet that the stock Flipper NFC app can write to a blank NTAG213 sticker. When someone taps the sticker with their phone, their Lightning wallet opens with your address pre-filled.
+- **Home page with About** — Top-level menu with **Choose Wallet** and **About** options.
+- **Multi-wallet support** — Three preset wallets: Speed (`@speed.app`), Strike (`@strike.me`), and Wallet of Satoshi (`@walletofsatoshi.com`).
+- **On-device username editor** — Type your Lightning Address username on the Flipper. The wallet suffix is appended automatically.
+- **Persistent storage** — Usernames saved per wallet to the SD card; survive reboots and reinstall.
+- **Equal-sized QR codes** — Fixed render size regardless of how much data is encoded.
+- **Haptic feedback** — Vibration buzz on QR display.
+- **NFC tag file export** — Pick **NTAG213 / NTAG215 / NTAG216** to match your sticker. Generates a Flipper `.nfc` file containing an NDEF URL record with `lightning:<address>`.
 
 ## Hardware Requirements
 
 - **Flipper Zero** (stock hardware, no add-ons required)
 - Firmware: Latest official Release or Release Candidate
-- Optional: Blank NTAG213 NFC sticker (for the NFC tag export feature)
+- Optional: Blank NTAG213 / NTAG215 / NTAG216 sticker
 
 ## Installation
 
-### Option 1: Flipper Application Catalog
-
-Once approved on the catalog, search **"BTCLN QR Generator"** at [lab.flipper.net](https://lab.flipper.net) and click Install.
-
-### Option 2: Build from source
+### Build from source
 
 Requirements: Python 3 + a USB cable.
 
@@ -39,30 +36,42 @@ cd BTCLN-QR-Generator
 python3 -m ufbt launch
 ```
 
-The app installs to **Apps → Tools → BTCLN QR Generator** on your Flipper.
+The app installs to **Apps → Tools → BTCLN QR Generator**.
 
 ## How to use
 
-### Choose a wallet and show your QR
+### Home page
 
-1. Open the app. The wallet picker opens directly.
-2. Highlight Speed, Strike, or Wallet of Satoshi and press OK.
-3. Choose **Show QR**. The screen draws your Lightning Address QR code with the address text underneath.
-4. Press Back to return to the wallet menu.
+Opens at start. Two options:
 
-### Edit your username for a wallet
+1. **Choose Wallet** — Opens the wallet picker.
+2. **About** — A scrolling page describing what the app does. Use Up/Down to scroll, Back to return.
 
-1. From the wallet menu, choose **Edit Username**.
-2. The on-device keyboard opens with the current username pre-filled.
-3. Type your new handle (no `@` or domain needed) and press Save.
-4. The new username is written to the SD card and used on the next Show QR.
+### Display your QR
+
+1. Choose Wallet → pick Speed / Strike / Wallet of Satoshi.
+2. **Show QR** — Renders your Lightning Address as a QR with the address text below.
+3. Anyone can scan the QR with a Lightning wallet to pay you.
+
+### Edit your username
+
+1. From a wallet's menu, choose **Edit Username**.
+2. Type your handle on the built-in keyboard (no `@` or domain needed).
+3. Save. The username is persisted to the SD card.
 
 ### Export an NFC tag file
 
-1. From the wallet menu, choose **Write NFC Tag**.
-2. The app writes a `.nfc` file to `SD:/nfc/btcln_qr/<wallet>.nfc`.
-3. Open the stock Flipper **NFC** app, navigate to **Saved → btcln_qr**, open the file, and write it to a blank NTAG213 sticker.
-4. When someone taps the sticker with their phone, their Lightning wallet opens with your address.
+1. From a wallet's menu, choose **Write NFC Tag**.
+2. The **Select Tag Type** screen appears with NTAG213 / NTAG215 / NTAG216.
+3. Pick the type that matches your physical sticker.
+4. The file is saved to `SD:/nfc/btcln_qr/<wallet>_<ntagtype>.nfc`.
+
+### Writing the file to a physical sticker
+
+Current stock Flipper firmware does **not** include a direct "Write" option for saved NFC files. To get the URL onto a sticker, use one of these:
+
+- **NFC Tools app on phone** (free, Android/iOS) — Open the app, choose Write → Add a record → URL, enter `lightning:<your-username>@<wallet-domain>`, then tap your sticker. Fastest option.
+- **Custom Flipper firmware** — Momentum, Xtreme, or RogueMaster firmware restores a direct Write option in the NFC app's saved file menu, which works with our `.nfc` file.
 
 ## File reference
 
@@ -71,16 +80,17 @@ The app installs to **Apps → Tools → BTCLN QR Generator** on your Flipper.
 | `application.fam` | Flipper app manifest |
 | `btcln_qr.c` | Main app source |
 | `qrcodegen.c` / `qrcodegen.h` | Project Nayuki's QR code generator (MIT) |
-| `icon.png` | 10x10 1-bit app icon |
+| `icon.png` | 10x10 1-bit lightning bolt icon |
 | `make_icon.py` | Helper to regenerate `icon.png` |
 | `LICENSE` | MIT License |
 | `changelog.md` | Version history |
 
 ## Technical notes
 
-- Renders QR codes at a fixed 50x50 pixel size regardless of QR version by distributing target pixels across modules.
-- NFC tag files are formatted as Flipper `.nfc` files with NTAG213 memory layout and a standards-compliant NDEF URL record using the `lightning:` URI scheme.
-- All user data (usernames) stays on the SD card. The app makes no network calls and contains no telemetry.
+- QR rendered at fixed 50x50 pixels regardless of QR version, with module-distribution that produces a consistent on-screen size.
+- NFC tag files use the standard Flipper `.nfc` format with the chosen NTAG type's CC byte (`0x12` / `0x3E` / `0x6D`) and page count (45 / 135 / 231).
+- NDEF payload is a single URL record with the `lightning:` scheme — recognized by every major Lightning wallet on iOS and Android.
+- All data stays on the SD card. The app makes no network calls and contains no telemetry.
 
 ## Acknowledgements
 
