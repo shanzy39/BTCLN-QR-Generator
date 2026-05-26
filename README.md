@@ -4,13 +4,15 @@ A Flipper Zero app for receiving Bitcoin over the Lightning Network. Generate sc
 
 ## Features
 
-- **Home page with About** — Top-level menu with **Choose Wallet** and **About** options.
+- **Home page** — Top-level menu with **Choose Wallet**, **Quick QR**, and **About**.
+- **Quick QR** — One-tap shortcut that instantly shows the QR for the wallet you used last. The last-used wallet is persisted across reboots and reinstalls.
 - **Multi-wallet support** — Three preset wallets: Speed (`@speed.app`), Strike (`@strike.me`), and Wallet of Satoshi (`@walletofsatoshi.com`).
 - **On-device username editor** — Type your Lightning Address username on the Flipper. The wallet suffix is appended automatically.
 - **Persistent storage** — Usernames saved per wallet to the SD card; survive reboots and reinstall.
 - **Equal-sized QR codes** — Fixed render size regardless of how much data is encoded.
 - **Haptic feedback** — Vibration buzz on QR display.
 - **NFC tag file export** — Pick **NTAG213 / NTAG215 / NTAG216** to match your sticker. Generates a Flipper `.nfc` file containing an NDEF URL record with `lightning:<address>`.
+- **Lightning bolt icon** — Custom 10x10 1-bit icon for the Flipper apps list.
 
 ## Hardware Requirements
 
@@ -42,16 +44,19 @@ The app installs to **Apps → Tools → BTCLN QR Generator**.
 
 ### Home page
 
-Opens at start. Two options:
+Opens at start. Three options:
 
 1. **Choose Wallet** — Opens the wallet picker.
-2. **About** — A scrolling page describing what the app does. Use Up/Down to scroll, Back to return.
+2. **Quick QR** — Instantly displays the QR for whichever wallet you used last. Defaults to Speed on first run.
+3. **About** — A scrolling page describing the app. Use Up/Down to scroll, Back to return.
 
 ### Display your QR
 
 1. Choose Wallet → pick Speed / Strike / Wallet of Satoshi.
 2. **Show QR** — Renders your Lightning Address as a QR with the address text below.
 3. Anyone can scan the QR with a Lightning wallet to pay you.
+
+Subsequent runs, just use **Quick QR** from the home page to skip the picker.
 
 ### Edit your username
 
@@ -90,6 +95,7 @@ Current stock Flipper firmware does **not** include a direct "Write" option for 
 - QR rendered at fixed 50x50 pixels regardless of QR version, with module-distribution that produces a consistent on-screen size.
 - NFC tag files use the standard Flipper `.nfc` format with the chosen NTAG type's CC byte (`0x12` / `0x3E` / `0x6D`) and page count (45 / 135 / 231).
 - NDEF payload is a single URL record with the `lightning:` scheme — recognized by every major Lightning wallet on iOS and Android.
+- Last-used wallet persisted to `SD:/apps_data/btcln_qr/last_wallet.txt` so Quick QR remembers your choice across sessions.
 - All data stays on the SD card. The app makes no network calls and contains no telemetry.
 
 ## Acknowledgements

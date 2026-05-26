@@ -32,15 +32,22 @@
 #define DEFAULT_USERNAME  "satoshi"
 #define STORAGE_DIR       EXT_PATH("apps_data/btcln_qr")
 #define NFC_OUTPUT_DIR    EXT_PATH("nfc/btcln_qr")
+#define LAST_WALLET_FILE  EXT_PATH("apps_data/btcln_qr/last_wallet.txt")
 
 #define ABOUT_TEXT \
-    "BTCLN QR Generator displays scannable Lightning Address QR codes " \
-    "for Speed, Strike, and Wallet of Satoshi. Edit your username on " \
-    "device, show the QR for anyone to scan and pay you over the " \
-    "Lightning Network, or export an NFC tag file (NTAG213, NTAG215, " \
-    "or NTAG216) for writing to a sticker so taps open the payer's " \
-    "wallet with your address pre filled. All data stays on the SD " \
-    "card. The app makes no network calls."
+    "Receive Bitcoin over the Lightning Network on your Flipper Zero.\n\n" \
+    "Choose Wallet: pick Speed, Strike, or Wallet of Satoshi, set your " \
+    "Lightning Address username, and the app generates a QR code " \
+    "anyone can scan from their wallet to pay you.\n\n" \
+    "Quick QR: instantly shows the QR for the wallet you used last. " \
+    "Skips the picker for repeat use.\n\n" \
+    "NFC: export a tag file for NTAG213, NTAG215, or NTAG216 stickers. " \
+    "Write the file to a blank sticker using the NFC Tools phone app " \
+    "or custom firmware so taps open the payer's Lightning wallet with " \
+    "your address pre filled.\n\n" \
+    "Privacy: the app runs entirely offline. Usernames stay on the SD " \
+    "card. No network calls, no telemetry.\n\n" \
+    "License: MIT. QR encoding by Project Nayuki."
 
 typedef enum {
     WalletSpeed = 0,
@@ -97,7 +104,8 @@ typedef enum {
 } ViewId;
 
 typedef enum {
-    MainMenuChooseWallet = 0,
+    MainMenuQuickQr = 0,
+    MainMenuChooseWallet,
     MainMenuAbout,
 } MainMenuItem;
 
@@ -226,6 +234,42 @@ static void load_all_usernames(App* app) {
     }
 }
 
+static void save_last_wallet(Wallet w) {
+    Storage* storage = furi_record_open(RECORD_STORAGE);
+    storage_simply_mkdir(storage, STORAGE_DIR);
+    File* file = storage_file_alloc(storage);
+    if (storage_file_open(file, LAST_WALLET_FILE, FSAM_WRITE, FSOM_CREATE_ALWAYS)) {
+        char buf[4];
+        int n = snprintf(buf, sizeof(buf), "%d", (int)w);
+        storage_file_write(file, buf, (uint16_t)n);
+    }
+    storage_file_close(file);
+    storage_file_free(file);
+    furi_record_close(RECORD_STORAGE);
+}
+
+static Wallet load_last_wallet(void) {
+    Wallet result = WalletSpeed;
+    Storage* storage = furi_record_open(RECORD_STORAGE);
+    File* file = storage_file_alloc(storage);
+    if (storage_file_open(file, LAST_WALLET_FILE, FSAM_READ, FSOM_OPEN_EXISTING)) {
+        char buf[8];
+        memset(buf, 0, sizeof(buf));
+        uint16_t bytes = storage_file_read(file, buf, sizeof(buf) - 1);
+        if (bytes > 0) {
+            buf[bytes] = '\0';
+            int v = atoi(buf);
+            if (v >= 0 && v < WalletCount) {
+                result = (Wallet)v;
+            }
+        }
+    }
+    storage_file_close(file);
+    storage_file_free(file);
+    furi_record_close(RECORD_STORAGE);
+    return result;
+}
+
 /* ---- QR ---- */
 static void compose_wallet_address(App* app) {
     Wallet w = app->active_wallet;
@@ -300,6 +344,8 @@ static void rebuild_main_menu(App* app) {
     submenu_set_header(app->main_menu, "BTCLN QR Generator");
     submenu_add_item(app->main_menu, "Choose Wallet", MainMenuChooseWallet,
                      main_menu_callback, app);
+    submenu_add_item(app->main_menu, "Quick QR",      MainMenuQuickQr,
+                     main_menu_callback, app);
     submenu_add_item(app->main_menu, "About",         MainMenuAbout,
                      main_menu_callback, app);
 }
@@ -307,6 +353,14 @@ static void rebuild_main_menu(App* app) {
 static void main_menu_callback(void* context, uint32_t index) {
     App* app = context;
     switch (index) {
+        case MainMenuQuickQr:
+            app->active_wallet = load_last_wallet();
+            compose_wallet_address(app);
+            app->qr_back_target = ViewIdMainMenu;
+            generate_qr_from_address(app);
+            notification_message(app->notifications, &sequence_single_vibro);
+            switch_to(app, ViewIdQr);
+            break;
         case MainMenuChooseWallet:
             switch_to(app, ViewIdWalletPicker);
             break;
@@ -359,6 +413,7 @@ static void rebuild_wallet_menu(App* app) {
 
 static void open_wallet_menu(App* app, Wallet w) {
     app->active_wallet = w;
+    save_last_wallet(w);
     rebuild_wallet_menu(app);
     switch_to(app, ViewIdWalletMenu);
 }

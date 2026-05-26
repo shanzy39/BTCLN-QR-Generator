@@ -4,17 +4,18 @@ A Flipper Zero app for receiving Bitcoin over the Lightning Network. Generate sc
 
 ## Features
 
-- **Home page with About** — Top-level menu with Choose Wallet and About options.
+- **Home page** — Choose Wallet, Quick QR, and About at the top level.
+- **Quick QR** — One-tap shortcut that instantly shows the QR for the wallet you used last. Persisted across reboots.
 - **Multi-wallet support** — Three preset wallets: Speed, Strike, and Wallet of Satoshi.
 - **On-device username editor** — Type your Lightning Address username on the Flipper. The wallet suffix is appended automatically.
-- **Persistent storage** — Usernames saved per wallet to the SD card; survive reboots and reinstall.
+- **Persistent storage** — Usernames and last-used wallet are saved to the SD card; survive reboots and reinstall.
 - **Equal-sized QR codes** — Fixed render size regardless of how much data is encoded.
 - **Haptic feedback** — Vibration buzz on QR display.
 - **NFC tag file export** — Pick NTAG213, NTAG215, or NTAG216 to match your sticker. Generates a Flipper NFC file containing an NDEF URL record with the lightning scheme.
 
 ## How to use
 
-Open the app. The home page has Choose Wallet and About. Choose a wallet, then pick Show QR to display the QR, Edit Username to change your handle, or Write NFC Tag to export a tag file. When exporting, you pick the NTAG type that matches your physical sticker.
+Open the app. The home page has Choose Wallet, Quick QR, and About. Use Quick QR for one-tap access to your last wallet, or Choose Wallet to pick a different one. From a wallet's menu, pick Show QR to display the QR, Edit Username to change your handle, or Write NFC Tag to export a tag file. When exporting, you pick the NTAG type that matches your physical sticker.
 
 ## Hardware
 
