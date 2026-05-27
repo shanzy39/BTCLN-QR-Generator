@@ -24,7 +24,7 @@ Open the app. The home page has Choose Wallet, Quick QR, and About. Use Quick QR
 
 ## Writing the file to a sticker
 
-The saved NFC file can be written to a physical sticker using the NFC Tools phone app (free, Android and iOS) or via custom Flipper firmware that exposes a direct Write action.
+Open the stock NFC app, find the file under Saved -> btcln_qr, pick Write, and hold a blank NTAG sticker against the Flipper. The NFC Tools phone app is a reliable fallback if your firmware does not expose Write for NTAG files.
 
 ## Privacy
 

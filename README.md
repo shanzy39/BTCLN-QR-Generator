@@ -73,10 +73,15 @@ Subsequent runs, just use **Quick QR** from the home page to skip the picker.
 
 ### Writing the file to a physical sticker
 
-Current stock Flipper firmware does **not** include a direct "Write" option for saved NFC files. To get the URL onto a sticker, use one of these:
+The generated file works directly with the stock Flipper NFC app:
 
-- **NFC Tools app on phone** (free, Android/iOS) — Open the app, choose Write → Add a record → URL, enter `lightning:<your-username>@<wallet-domain>`, then tap your sticker. Fastest option.
-- **Custom Flipper firmware** — Momentum, Xtreme, or RogueMaster firmware restores a direct Write option in the NFC app's saved file menu, which works with our `.nfc` file.
+1. Open the stock **NFC** app on your Flipper.
+2. **Saved → btcln_qr** → pick the file you exported.
+3. Choose **Write**.
+4. Hold a blank NTAG sticker (matching the type you picked when exporting) against the top of the Flipper.
+5. After Write completes, tapping the sticker with a phone opens the payer's Lightning wallet with your address pre-filled.
+
+If your firmware variant doesn't show a Write option for NTAG files (some custom forks behave differently), the **NFC Tools** phone app is a reliable fallback — write a URL record containing `lightning:<your-username>@<wallet-domain>` directly to the sticker from your phone.
 
 ## File reference
 

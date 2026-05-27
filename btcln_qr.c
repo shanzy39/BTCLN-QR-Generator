@@ -42,9 +42,10 @@
     "Quick QR: instantly shows the QR for the wallet you used last. " \
     "Skips the picker for repeat use.\n\n" \
     "NFC: export a tag file for NTAG213, NTAG215, or NTAG216 stickers. " \
-    "Write the file to a blank sticker using the NFC Tools phone app " \
-    "or custom firmware so taps open the payer's Lightning wallet with " \
-    "your address pre filled.\n\n" \
+    "Open the stock NFC app, find the file under Saved -> btcln_qr, " \
+    "pick Write, and hold a blank tag against the Flipper. Taps on the " \
+    "sticker will open the payer's Lightning wallet with your address " \
+    "pre filled.\n\n" \
     "Privacy: the app runs entirely offline. Usernames stay on the SD " \
     "card. No network calls, no telemetry.\n\n" \
     "License: MIT. QR encoding by Project Nayuki."
@@ -79,17 +80,18 @@ typedef struct {
     const char* name;        /* display + file-header type label */
     int         total_pages; /* total pages in user memory layout */
     uint8_t     cc_size;     /* CC[2] byte (NDEF area size) */
+    uint8_t     mifare_ver;  /* byte 6 of Mifare version: storage size code */
 } NtagTypeInfo;
 
-/* CC values from NXP NTAG datasheets:
- *  NTAG213: E1 10 12 00 (144 bytes user memory)
- *  NTAG215: E1 10 3E 00 (504 bytes)
- *  NTAG216: E1 10 6D 00 (888 bytes)
+/* Values from NXP NTAG datasheets:
+ *  NTAG213: CC=0x12 (144B), Mifare ver byte 6 = 0x0F
+ *  NTAG215: CC=0x3E (504B), Mifare ver byte 6 = 0x11
+ *  NTAG216: CC=0x6D (888B), Mifare ver byte 6 = 0x13
  */
 static const NtagTypeInfo NTAG_TYPES[NtagTypeCount] = {
-    [Ntag213] = {"NTAG213", 45,  0x12},
-    [Ntag215] = {"NTAG215", 135, 0x3E},
-    [Ntag216] = {"NTAG216", 231, 0x6D},
+    [Ntag213] = {"NTAG213", 45,  0x12, 0x0F},
+    [Ntag215] = {"NTAG215", 135, 0x3E, 0x11},
+    [Ntag216] = {"NTAG216", 231, 0x6D, 0x13},
 };
 
 typedef enum {
@@ -555,13 +557,20 @@ static bool write_nfc_tag_file(App* app, Wallet w, NtagType type,
     memset(mem, 0, mem_size);
 
     if (storage_file_open(file, out_path, FSAM_WRITE, FSOM_CREATE_ALWAYS)) {
-        /* Page 0-1: placeholder UID (the actual tag's UID is used on write) */
-        mem[0]  = 0x04; mem[1]  = 0x11; mem[2]  = 0x22; mem[3]  = 0x9D;
-        mem[4]  = 0x33; mem[5]  = 0x44; mem[6]  = 0x55; mem[7]  = 0x66;
-        /* Page 2: BCC1 + internal + lock bytes */
-        mem[8]  = 0xDD; mem[9]  = 0x48; mem[10] = 0x00; mem[11] = 0x00;
+        /* Placeholder UID — the actual tag's UID is preserved on write.
+         * BCC bytes are computed below from the UID. */
+        const uint8_t uid[7] = {0x04, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
+        const uint8_t bcc0 = 0x88 ^ uid[0] ^ uid[1] ^ uid[2];
+        const uint8_t bcc1 = uid[3] ^ uid[4] ^ uid[5] ^ uid[6];
+
+        /* Page 0: UID0..UID2 + BCC0 */
+        mem[0]  = uid[0]; mem[1]  = uid[1]; mem[2]  = uid[2]; mem[3]  = bcc0;
+        /* Page 1: UID3..UID6 */
+        mem[4]  = uid[3]; mem[5]  = uid[4]; mem[6]  = uid[5]; mem[7]  = uid[6];
+        /* Page 2: BCC1 + internal byte + static lock bytes (unlocked) */
+        mem[8]  = bcc1;   mem[9]  = 0x48;   mem[10] = 0x00;   mem[11] = 0x00;
         /* Page 3: Capability Container for the selected NTAG type with NDEF */
-        mem[12] = 0xE1; mem[13] = 0x10; mem[14] = info->cc_size; mem[15] = 0x00;
+        mem[12] = 0xE1;   mem[13] = 0x10;   mem[14] = info->cc_size; mem[15] = 0x00;
 
         /* Page 4+: NDEF data */
         int p = 16;
@@ -579,19 +588,37 @@ static bool write_nfc_tag_file(App* app, Wallet w, NtagType type,
             mem[p++] = 0xFE;
         }
 
+        /* Config pages at end of memory.
+         * Layout (relative to lock_page):
+         *   lock_page + 0 : Dynamic lock bytes (3 bytes) + RFUI (0xBD)
+         *   lock_page + 1 : CFG_0 (MIRROR/AUTH0 — 0xFF = no protection)
+         *   lock_page + 2 : CFG_1 (default access settings)
+         *   lock_page + 3 : PWD  (default 0xFFFFFFFF)
+         *   lock_page + 4 : PACK + RFUI
+         */
+        const int lock_page = total_pages - 5;
+        if (lock_page >= 4) {
+            int lp = lock_page * 4;
+            mem[lp + 0] = 0x00; mem[lp + 1] = 0x00; mem[lp + 2] = 0x00; mem[lp + 3] = 0xBD;
+            mem[lp + 4] = 0x04; mem[lp + 5] = 0x00; mem[lp + 6] = 0x00; mem[lp + 7] = 0xFF;
+            mem[lp + 8] = 0x00; mem[lp + 9] = 0x05; mem[lp +10] = 0x00; mem[lp +11] = 0x00;
+            mem[lp +12] = 0xFF; mem[lp +13] = 0xFF; mem[lp +14] = 0xFF; mem[lp +15] = 0xFF;
+            mem[lp +16] = 0x00; mem[lp +17] = 0x00; mem[lp +18] = 0x00; mem[lp +19] = 0x00;
+        }
+
         char header[512];
         int hlen = snprintf(header, sizeof(header),
             "Filetype: Flipper NFC device\n"
             "Version: 4\n"
             "Device type: NTAG/Ultralight\n"
-            "UID: 04 11 22 33 44 55 66\n"
+            "UID: %02X %02X %02X %02X %02X %02X %02X\n"
             "ATQA: 00 44\n"
             "SAK: 00\n"
             "Data format version: 2\n"
             "NTAG/Ultralight type: %s\n"
             "Signature: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00"
             " 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n"
-            "Mifare version: 00 04 04 02 01 00 0F 03\n"
+            "Mifare version: 00 04 04 02 01 00 %02X 03\n"
             "Counter 0: 0\n"
             "Tearing 0: 00\n"
             "Counter 1: 0\n"
@@ -600,7 +627,8 @@ static bool write_nfc_tag_file(App* app, Wallet w, NtagType type,
             "Tearing 2: 00\n"
             "Pages total: %d\n"
             "Pages read: %d\n",
-            info->name, total_pages, total_pages);
+            uid[0], uid[1], uid[2], uid[3], uid[4], uid[5], uid[6],
+            info->name, info->mifare_ver, total_pages, total_pages);
         storage_file_write(file, header, (uint16_t)hlen);
 
         char line[40];
@@ -646,10 +674,10 @@ static void nfc_view_draw(Canvas* canvas, void* _model) {
 
     canvas_set_font(canvas, FontSecondary);
     if (app->nfc_save_ok) {
-        canvas_draw_str(canvas, 2, 18, "Saved to /nfc/btcln_qr");
-        canvas_draw_str(canvas, 2, 30, "To write to a sticker:");
-        canvas_draw_str(canvas, 2, 39, "use NFC Tools phone app");
-        canvas_draw_str(canvas, 2, 48, "or custom firmware.");
+        canvas_draw_str(canvas, 2, 18, "1. Open NFC app");
+        canvas_draw_str(canvas, 2, 27, "2. Saved -> btcln_qr");
+        canvas_draw_str(canvas, 2, 36, "3. Pick file -> Write");
+        canvas_draw_str(canvas, 2, 45, "4. Hold blank tag");
     } else {
         canvas_draw_str(canvas, 2, 22, "Could not save file.");
         canvas_draw_str(canvas, 2, 32, "Check SD card and");
